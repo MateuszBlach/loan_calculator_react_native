@@ -1,70 +1,145 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, Button, ScrollView, TouchableOpacity } from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function LoanCalculatorApp() {
+  const [loanAmount, setLoanAmount] = useState('');
+  const [interestRate, setInterestRate] = useState('');
+  const [months, setMonths] = useState('');
+  const [isEqualInstallments, setIsEqualInstallments] = useState(true);
+  const [installments, setInstallments] = useState<number[]>([]); // specify type as number[]
+  const [showResults, setShowResults] = useState(false);
 
-export default function HomeScreen() {
+  const calculateInstallments = () => {
+    const loan = parseFloat(loanAmount);
+    const rate = parseFloat(interestRate);
+    const duration = parseInt(months);
+
+    if (loan && rate && duration) {
+      const monthlyRate = rate / 100 / 12;
+      let calculatedInstallments: number[] = [];
+
+      if (isEqualInstallments) {
+        const equalInstallment = loan * monthlyRate / (1 - Math.pow(1 + monthlyRate, -duration));
+        calculatedInstallments = Array(duration).fill(equalInstallment);
+      } else {
+        let remainingAmount = loan;
+        const principalPayment = loan / duration;
+
+        for (let i = 0; i < duration; i++) {
+          const interestForMonth = remainingAmount * monthlyRate;
+          calculatedInstallments.push(principalPayment + interestForMonth);
+          remainingAmount -= principalPayment;
+        }
+      }
+      setInstallments(calculatedInstallments);
+      setShowResults(true);
+    }
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({ ios: 'cmd + d', android: 'cmd + m' })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <ScrollView style={{ padding: 16, backgroundColor: '#fff' }}>
+      {!showResults ? (
+        <View>
+          <Text style={{ fontSize: 26, fontWeight: 'bold', color: '#1565C0', marginBottom: 16 }}>
+            Kalkulator Pożyczki
+          </Text>
+          <TextInput
+            placeholder="Kwota pożyczki (PLN)"
+            keyboardType="numeric"
+            value={loanAmount}
+            onChangeText={setLoanAmount}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Oprocentowanie (%)"
+            keyboardType="numeric"
+            value={interestRate}
+            onChangeText={setInterestRate}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Liczba miesięcy"
+            keyboardType="numeric"
+            value={months}
+            onChangeText={setMonths}
+            style={styles.input}
+          />
+
+          <Text style={{ fontSize: 18, fontWeight: '500', marginTop: 16 }}>Rodzaj rat:</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+            <TouchableOpacity onPress={() => setIsEqualInstallments(true)} style={styles.radioOption}>
+              <Text style={isEqualInstallments ? styles.radioSelected : styles.radioText}>Równe</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setIsEqualInstallments(false)} style={styles.radioOption}>
+              <Text style={!isEqualInstallments ? styles.radioSelected : styles.radioText}>Malejące</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Button title="Oblicz raty" onPress={calculateInstallments} color="#1565C0" />
+        </View>
+      ) : (
+        <LoanResultScreen installments={installments} onBack={() => setShowResults(false)} />
+      )}
+    </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
+interface LoanResultScreenProps {
+  installments: number[];
+  onBack: () => void;
+}
+
+function LoanResultScreen({ installments, onBack }: LoanResultScreenProps) {
+  const totalPayment = installments.reduce((acc, installment) => acc + installment, 0);
+
+  return (
+    <View>
+      <Button title="Wróć" onPress={onBack} color="#1565C0" />
+      <Text style={{ fontSize: 20, fontWeight: 'bold', marginVertical: 16 }}>Wyniki Kalkulacji</Text>
+      <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Raty miesięczne:</Text>
+
+      {installments.map((installment, index) => (
+        <View key={index}>
+          <Text>Miesiąc {index + 1}</Text>
+          <Text>{installment.toFixed(2)} PLN</Text>
+        </View>
+      ))}
+
+      <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1565C0', marginTop: 20 }}>
+        Łączna kwota do spłaty: {totalPayment.toFixed(2)} PLN
+      </Text>
+    </View>
+  );
+}
+
+
+const styles = {
+  input: {
+    height: 40,
+    borderColor: '#cccccc',
+    borderWidth: 1,
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  radioOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginRight: 16,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  radioText: {
+    fontSize: 16,
+    color: '#000',
   },
-});
+  radioSelected: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1565C0',
+  },
+};
